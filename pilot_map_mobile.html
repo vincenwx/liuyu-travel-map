@@ -9,6 +9,19 @@
 <link rel="icon" href="./icon-192.png">
 <link rel="apple-touch-icon" href="./icon-192.png">
 <title>刘羽的旅行 · 自驾点位图</title>
+<style>#errbar{display:none;position:fixed;top:0;left:0;right:0;z-index:9999;background:#b3261e;color:#fff;font-size:11px;padding:6px 8px;max-height:40%;overflow:auto;word-break:break-all}</style>
+<div id="errbar"></div>
+<script>
+// 诊断:任何脚本错误直接显示在页面顶部红条里(手机端无控制台时定位用)
+window.addEventListener('error', function(e){
+  var b=document.getElementById('errbar'); if(!b) return; b.style.display='block';
+  b.textContent='脚本错误: '+(e.message||'未知')+' @ '+(e.filename||'').split('/').pop()+':'+(e.lineno||'?');
+});
+window.addEventListener('unhandledrejection', function(e){
+  var b=document.getElementById('errbar'); if(!b) return; b.style.display='block';
+  b.textContent='异步错误: '+((e.reason&&e.reason.message)||e.reason||'未知');
+});
+</script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
 <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.js"></script>
