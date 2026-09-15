@@ -1,7 +1,7 @@
 // 刘羽自驾点位图 - Service Worker
 // HTML: network-first(更新即时可见,离线回落缓存)
 // 高德瓦片/Leaflet CDN: 缓存优先 -> 已浏览区域可离线查看(全图离线不现实,别夸大)
-const CACHE = 'liuyu-map-v2';
+const CACHE = 'liuyu-map-09-151006';
 const CORE = ['./pilot_map_mobile.html', './manifest.json', './icon-192.png', './icon-512.png',
   'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.css',
   'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.js',
