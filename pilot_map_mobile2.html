@@ -8,8 +8,18 @@
 <link rel="manifest" href="./manifest.json">
 <link rel="icon" href="./icon-192.png">
 <link rel="apple-touch-icon" href="./icon-192.png">
-<title>刘羽的旅行 · 自驾点位图</title>
-<style>#errbar{display:none;position:fixed;top:0;left:0;right:0;z-index:9999;background:#b3261e;color:#fff;font-size:11px;padding:6px 8px;max-height:40%;overflow:auto;word-break:break-all}</style>
+<title>刘羽的旅行 · 行程规划版</title>
+<style>#errbar{display:none;position:fixed;top:0;left:0;right:0;z-index:9999;background:#b3261e;color:#fff;font-size:11px;padding:6px 8px;max-height:40%;overflow:auto;word-break:break-all}
+  #plannerBox{display:none;position:fixed;left:50%;transform:translateX(-50%);bottom:14px;width:min(720px,95vw);max-height:82vh;overflow:auto;background:#fff;border-radius:14px;box-shadow:0 8px 30px rgba(0,0,0,.28);z-index:1600;padding:14px 16px;font-size:13px}
+  #plannerBox .prow{display:flex;flex-wrap:wrap;gap:5px;align-items:center;margin:6px 0}
+  #plannerBox .plab{width:38px;font-weight:700;color:#334;font-size:12px;flex:0 0 auto}
+  #planForm .chip{user-select:none}
+  .pday{background:#f6f8fb;border-radius:10px;padding:10px 12px;margin:8px 0}
+  .pday ol{margin:6px 0;padding-left:22px}
+  .pday li{margin:3px 0}
+  .psegs a{display:inline-block;padding:5px 9px;margin:3px 4px 0 0;background:#fff4e5;border-radius:7px;color:#b26a00!important;font-weight:600;text-decoration:none;font-size:12px}
+  .pclose{float:right;border:none;background:none;font-size:14px;cursor:pointer;color:#889}
+</style>
 <div id="errbar"></div>
 <script>
 // 诊断:任何脚本错误直接显示在页面顶部红条里(手机端无控制台时定位用)
@@ -100,8 +110,9 @@ window.addEventListener('unhandledrejection', function(e){
   <div id="panel">
     <div id="rdetail"></div>
     <div id="toast"></div>
+    <button class="rexport" style="background:#ff7800;margin-bottom:8px" onclick="openPlanner()">🧭 行程规划器 · 按需求生成每日路线</button>
     <button id="installBtn" class="rexport" style="display:none;background:#0a7cff" onclick="installApp()">📲 安装到手机桌面</button>
-    <h1>刘羽的旅行 · 自驾点位图</h1>
+    <h1>行程规划版（2.0）</h1>
     <div class="sub">L1标题/简介 + L2 AI字幕（人工核对地名志）</div>
     <div class="stats" id="stat"></div>
     <div class="searchbox"><input id="q" placeholder="搜索点位名…"></div>
@@ -544,6 +555,132 @@ window.installApp = function(){
   deferredPrompt.userChoice.then(()=>{ deferredPrompt = null;
     const btn = document.getElementById('installBtn'); if (btn) btn.style.display = 'none'; });
 };
+
+// ===== 行程规划器 2.0 =====
+const PLAN = {days:2, regions:[], scen:[], free:false};
+const PLAN_SCEN = [['古村镇','古村|古镇|古街|老街|民居|故居'],['山岳','山|峰|岭'],['湖泊','湖|水库|湿地'],['海滨海岛','岛|渔港|海岸|沙滩'],['溪瀑峡谷','瀑布|溪|峡谷'],['人文古迹','寺|庙|塔|遗址|博物馆']];
+function openPlanner(){
+  const box = document.getElementById('plannerBox');
+  box.style.display = 'block';
+  if (!box.dataset.built) { buildPlanForm(); box.dataset.built = '1'; }
+}
+function closePlanner(){ document.getElementById('plannerBox').style.display = 'none'; }
+function planRegions(){ return [...new Set(DATA.pois.filter(p=>p.kind==='poi').map(p=>p.region))]
+  .filter(r => r && r !== '其他' && r !== '远途').sort(); }
+function buildPlanForm(){
+  const f = document.getElementById('planForm');
+  f.innerHTML = '';
+  const daysRow = document.createElement('div'); daysRow.className = 'prow';
+  daysRow.innerHTML = '<span class="plab">天数</span>';
+  [1,2,3].forEach(d => {
+    const el = document.createElement('span'); el.className = 'chip' + (PLAN.days===d?' on':'');
+    el.textContent = d + '天';
+    el.onclick = () => { PLAN.days = d; buildPlanForm(); };
+    daysRow.appendChild(el);
+  });
+  f.appendChild(daysRow);
+  const regRow = document.createElement('div'); regRow.className = 'prow';
+  regRow.innerHTML = '<span class="plab">区域</span>';
+  planRegions().forEach(rg => {
+    const el = document.createElement('span'); el.className = 'chip' + (PLAN.regions.indexOf(rg)>=0?' on':'');
+    el.textContent = rg;
+    el.onclick = () => { const i = PLAN.regions.indexOf(rg); if (i>=0) PLAN.regions.splice(i,1); else PLAN.regions.push(rg); el.classList.toggle('on'); };
+    regRow.appendChild(el);
+  });
+  f.appendChild(regRow);
+  const scRow = document.createElement('div'); scRow.className = 'prow';
+  scRow.innerHTML = '<span class="plab">景观</span>';
+  PLAN_SCEN.forEach(pair => {
+    const el = document.createElement('span'); el.className = 'chip' + (PLAN.scen.indexOf(pair[0])>=0?' on':'');
+    el.textContent = pair[0];
+    el.onclick = () => { const i = PLAN.scen.indexOf(pair[0]); if (i>=0) PLAN.scen.splice(i,1); else PLAN.scen.push(pair[0]); el.classList.toggle('on'); };
+    scRow.appendChild(el);
+  });
+  f.appendChild(scRow);
+  const frRow = document.createElement('div'); frRow.className = 'prow';
+  frRow.innerHTML = '<span class="plab">其他</span>';
+  const fr = document.createElement('span'); fr.className = 'chip' + (PLAN.free?' on':''); fr.textContent = '只要免费点位';
+  fr.onclick = () => { PLAN.free = !PLAN.free; fr.classList.toggle('on'); };
+  frRow.appendChild(fr);
+  f.appendChild(frRow);
+}
+function planScore(p){ return Math.log10((p.play||0)+1) + ((p.attr_count||{}).free?1.5:0); }
+function planDist(a, b){ return dist(a[0], a[1], b[0], b[1]); }
+function generatePlan(){
+  const out = document.getElementById('planOut');
+  out.innerHTML = '计算中…';
+  setTimeout(() => {
+    let pool = DATA.pois.filter(p => p.kind === 'poi' && p.lat != null);
+    if (PLAN.regions.length) pool = pool.filter(p => PLAN.regions.some(rg => p.region.indexOf(rg) >= 0));
+    if (PLAN.scen.length) pool = pool.filter(p => PLAN.scen.some(sc => {
+      const d = PLAN_SCEN.find(x => x[0] === sc);
+      return d && new RegExp(d[1]).test(p.name);
+    }));
+    if (PLAN.free) pool = pool.filter(p => (p.attr_count || {}).free);
+    pool.sort((a, b) => planScore(b) - planScore(a));
+    const cap = Math.min(pool.length, PLAN.days * 7);
+    let sel = pool.slice(0, cap);
+    if (sel.length < 2) { out.innerHTML = '<b style="color:#b33">符合条件的点位太少，请放宽区域或景观筛选。</b>'; return; }
+    let pts = sel.map(p => [p.lat, p.lng, p.name]);
+    let ordered = [pts[0]]; let rest = pts.slice(1); let cur = pts[0];
+    while (rest.length) {
+      cur = rest.reduce((m, q) => planDist(cur[0], cur[1], q[0], q[1]) < planDist(cur[0], cur[1], m[0], m[1]) ? q : m, rest[0]);
+      ordered.push(cur); rest.splice(rest.indexOf(cur), 1);
+    }
+    for (let improved = true; improved; ) {
+      improved = false;
+      for (let i = 1; i < ordered.length - 1; i++) for (let j = i + 1; j < ordered.length; j++) {
+        const x1 = planDist(ordered[i-1][0], ordered[i-1][1], ordered[i][0], ordered[i][1]);
+        const x2 = planDist(ordered[j-1][0], ordered[j-1][1], ordered[j][0], ordered[j][1]);
+        const y1 = planDist(ordered[i-1][0], ordered[i-1][1], ordered[j-1][0], ordered[j-1][1]);
+        const y2 = planDist(ordered[i][0], ordered[i][1], ordered[j][0], ordered[j][1]);
+        if (x1 + x2 > y1 + y2 + 1e-9) { const seg = ordered.slice(i, j).reverse(); ordered.splice(i, seg.length, ...seg); improved = true; }
+      }
+    }
+    const total = ordered.reduce((s, p, i) => i ? s + planDist(ordered[i-1][0], ordered[i-1][1], p[0], p[1]) : 0, 0);
+    const budget = total / PLAN.days;
+    const days = []; let day = [ordered[0]]; let acc = 0;
+    for (let i = 1; i < ordered.length; i++) {
+      const step = planDist(ordered[i-1][0], ordered[i-1][1], ordered[i][0], ordered[i][1]);
+      if (acc + step > budget && day.length >= 2 && days.length < PLAN.days - 1) { days.push(day); day = [ordered[i]]; acc = 0; }
+      else { acc += step; day.push(ordered[i]); }
+    }
+    days.push(day);
+    let html = '';
+    days.forEach((d, di) => {
+      const dd = Math.round(d.reduce((s, p, i) => i ? s + planDist(d[i-1][0], d[i-1][1], p[0], p[1]) : 0, 0) * 1.3);
+      const dayPts = d.map(p => [p[0], p[1], p[2]]);
+      const segs = amapNavSegs(dayPts);
+      window['_planDay' + di] = dayPts;
+      html += `<div class="pday"><b>第${di+1}天</b> · 约${dd}km · ${d.length}个点<ol>` +
+        d.map((p, i) => `<li>${i+1}. ${esc(p[2])}</li>`).join('') +
+        `</ol><div class="psegs">` + segs.map(s2 => `<a target="_blank" href="${s2.url}">${esc(s2.label)}</a>`).join('') +
+        `<a href="javascript:void(0)" onclick="planGPX(${di})">⬇️ 当日GPX</a></div></div>`;
+    });
+    html += `<div style="font-size:11px;color:#889;margin-top:6px">提示：里程为沿路网估算；「当日GPX」含当天全部途经点，可导入两步路/奥维循迹。</div>`;
+    out.innerHTML = html;
+  }, 30);
+}
+function planGPX(di){
+  const pts = window['_planDay' + di]; if (!pts) return;
+  const wpts = pts.map((p, i) => `<wpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}"><name>${esc((i+1)+'. '+p[2])}</name></wpt>`).join('');
+  const gpx = '<?xml version="1.0" encoding="UTF-8"?><gpx version="1.1" creator="liuyu-travel-map" xmlns="http://www.topografix.com/GPX/1/1"><metadata><name>行程第' + (di+1) + '天</name></metadata>' + wpts + '</gpx>';
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([gpx], {type:'application/gpx+xml'}));
+  a.download = '行程第' + (di+1) + '天.gpx';
+  document.body.appendChild(a); a.click(); a.remove();
+}
+
 </script>
+
+<div id="plannerBox">
+  <button class="pclose" onclick="closePlanner()">✕ 关闭规划器</button>
+  <h3 style="margin:0 0 6px">🧭 行程规划器 2.0</h3>
+  <div style="font-size:12px;color:#667;margin-bottom:4px">按天数/区域/景观自动选点排序分天，每天一键导出高德分段与GPX</div>
+  <div id="planForm"></div>
+  <button class="rexport" style="width:100%" onclick="generatePlan()">⚡ 生成行程（按热度选点，自动排序分天）</button>
+  <div id="planOut"></div>
+</div>
+
 </body>
 </html>
